@@ -329,7 +329,7 @@ func (r *ReconcileRpaasInstance) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	nginx := newNginx(instance, plan, configMap)
-	if err = r.reconcileNginx(ctx, nginx); err != nil {
+	if err = r.reconcileNginx(ctx, instance, nginx); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -810,7 +810,7 @@ func (r *ReconcileRpaasInstance) reconcileConfigMap(ctx context.Context, configM
 	return err
 }
 
-func (r *ReconcileRpaasInstance) reconcileNginx(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+func (r *ReconcileRpaasInstance) reconcileNginx(ctx context.Context, instance *v1alpha1.RpaasInstance, nginx *nginxv1alpha1.Nginx) error {
 	found := &nginxv1alpha1.Nginx{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: nginx.ObjectMeta.Name, Namespace: nginx.ObjectMeta.Namespace}, found)
 	if err != nil {
@@ -823,6 +823,14 @@ func (r *ReconcileRpaasInstance) reconcileNginx(ctx context.Context, nginx *ngin
 			logrus.Errorf("Failed to create nginx CR: %v", err)
 			return err
 		}
+		return nil
+	}
+
+	if instance.Spec.Autoscale == nil {
+		nginx.Spec.Replicas = found.Spec.Replicas
+	}
+
+	if reflect.DeepEqual(nginx.Spec, found.Spec) {
 		return nil
 	}
 
